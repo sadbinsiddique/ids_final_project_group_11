@@ -1,6 +1,5 @@
 install.packages(c("tm", "tokenizers", "qdapRegex", "stringi", 
                    "dplyr", "stringr", "SnowballC", "textstem"))
-
 library(tm)
 library(tokenizers)
 library(qdapRegex)
@@ -13,7 +12,7 @@ library(textstem)
 replace_contraction <- function(text) {
   contractions <- c("n't" = " not", "'re" = " are", "'s" = " is", 
                     "'d" = " would", "'ll" = " will", "'t" = " not", 
-                    "'ve" = " have", "'m" = " am",'won’t'='will not',)
+                    "'ve" = " have", "'m" = " am",'won’t'='will not','Trump’s' ='Trump',' Zelensky’s'=' Zelensky')
   for (pattern in names(contractions)) {
     text <- gsub(pattern, contractions[pattern], text)
   }
