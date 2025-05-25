@@ -11,139 +11,35 @@ library(SnowballC)
 library(textstem)
 
 replace_contraction <- function(text) {
-  text <- gsub("[‘’´`ʹʻʼʽʾʿˈˊˋ˵]", "'", text)
-  text <- gsub("[“”]", "\"", text)
-  
   contractions <- c(
-    "won't" = "will not",
-    "can't" = "cannot",
-    "shan't" = "shall not",
-    "n't" = " not",
-    "'re" = " are",
-    "'s" = " is",
-    "'d" = " would",
-    "'ll" = " will",
-    "'t" = " not",
-    "'ve" = " have",
-    "'m" = " am",
+    "won't" = "will not", "can't" = "cannot", "shan't" = "shall not",
+    "n't" = " not", "'re" = " are", "'s" = " is", "'d" = " would",
+    "'ll" = " will", "'t" = " not", "'ve" = " have", "'m" = " am",
     
-    "Trump's" = "Trump",
-    "Zelensky's" = "Zelensky",
-    "Zelensky’s" = "Zelensky",
-    "country's" = "country",
-    "Congo's" = "Congo",
-    "Israel's" = "Israel",
-    "Station's" = "Station",
-    "Nat’l" = "Nat",
-    "Power's" = "Power",
-    "Sudan's" = "Sudan",
-    "India's" = "India",
-    "World's" = "World",
-    "int’l" = "int",
-    "govt's" = "govt",
-    "Adviser's" = "Adviser",
-    "Pakistan's" = "Pakistan",
-    "Cox's" = "Cox",
-    "KUET's" = "KUET",
-    "advisor's" = "advisor",
-    "Hamid's" = "Hamid",
-    "Azhar's" = "Azhar",
-    "Commissioner's" = "Commissioner",
-    "Pope's" = "Pope",
-    "Chattogram's" = "Chattogram",
-    "VC's" = "VC",
-    "pope's" = "pope",
-    "Shakib's" = "Shakib",
-    "Ahsan's" = "Ahsan",
-    "Google's" = "Google",
-    "Minister's" = "Minister",
-    "Abedin's" = "Abedin",
-    "Messi's" = "Messi",
-    "martyr's" = "martyr",
-    "CA's" = "CA",
-    "akh's" = "akh",
-    "people's" = "people",
-    "Canada's" = "Canada",
-    "Rehana's" = "Rehana",
-    "BNP's" = "BNP",
-    "Women's" = "Women",
-    "League's" = "League",
-    "Rahman's" = "Rahman",
-    "Hefazat-e-Islam's" = "Hefazat-e-Islam",
-    "capital's" = "capital",
-    "MoFA's" = "MoFA",
-    "Ullah's" = "Ullah",
-    "Putin's" = "Putin",
-    "Hasnat's" = "Hasnat",
-    "HWPL's" = "HWPL",
-    "Modi's" = "Modi",
-    "don't" = "do not",
-    "Harun's" = "Harun",
-    "ASP's" = "ASP",
-    "Army's" = "Army",
-    "AL's" = "AL",
-    "Council's" = "Council",
-    "unit's" = "unit",
-    "Hasina's" = "Hasina",
-    "NBR's" = "NBR",
-    "Kushtia's" = "Kushtia",
-    "Egypt's" = "Egypt",
-    "China's" = "China",
-    "Mymensingh's" = "Mymensingh",
+    # Domain-specific contractions/possessives
+    "Trump's" = "Trump", "Zelensky's" = "Zelensky", "Zelensky’s" = "Zelensky",
+    "country's" = "country", "Congo's" = "Congo", "Israel's" = "Israel",
+    "Nat’l" = "Nat", "int’l" = "int", "govt's" = "government",
     
-    "let's" = "let us",
-    "ain't" = "is not",
-    "y'all" = "you all",
-    "ma'am" = "madam",
-    "o'clock" = "of the clock",
-    "ne'er" = "never",
-    "gimme" = "give me",
-    "gonna" = "going to",
-    "gotta" = "got to",
-    "lemme" = "let me",
-    "more'n" = "more than",
-    "wanna" = "want to",
-    "whatcha" = "what are you",
-    "could've" = "could have",
-    "should've" = "should have",
-    "would've" = "would have",
-    "might've" = "might have",
-    "must've" = "must have",
-    "how's" = "how is",
-    "here's" = "here is",
-    "there's" = "there is",
-    "who's" = "who is",
-    "what's" = "what is",
-    "when's" = "when is",
-    "where's" = "where is",
-    "why's" = "why is",
-    "it's" = "it is",
-    "that's" = "that is",
-    "this's" = "this is",
-    "they'd" = "they would",
-    "they'll" = "they will",
-    "they're" = "they are",
-    "they've" = "they have",
-    "we'd" = "we would",
-    "we're" = "we are",
-    "we'll" = "we will",
-    "we've" = "we have",
-    "i'd" = "i would",
-    "i'll" = "i will",
-    "i'm" = "i am",
-    "i've" = "i have",
-    "he'd" = "he would",
-    "he'll" = "he will",
-    "he's" = "he is",
-    "she'd" = "she would",
-    "she'll" = "she will",
-    "she's" = "she is",
-    "you'd" = "you would",
-    "you'll" = "you will",
-    "you're" = "you are",
-    "you've" = "you have",
-    "it'd" = "it would",
-    "it'll" = "it will"
+    "let's" = "let us", "ain't" = "is not", "y'all" = "you all",
+    "ma'am" = "madam", "o'clock" = "of the clock", "ne'er" = "never",
+    "gimme" = "give me", "gonna" = "going to", "gotta" = "got to",
+    "lemme" = "let me", "wanna" = "want to", "whatcha" = "what are you",
+    "could've" = "could have", "should've" = "should have",
+    "would've" = "would have", "might've" = "might have", "must've" = "must have",
+    
+    "it's" = "it is", "that's" = "that is", "this's" = "this is",
+    "there's" = "there is", "here's" = "here is", "who's" = "who is",
+    "what's" = "what is", "when's" = "when is", "where's" = "where is",
+    "why's" = "why is", "how's" = "how is",
+    
+    "they'd" = "they would", "they'll" = "they will", "they're" = "they are", "they've" = "they have",
+    "we'd" = "we would", "we're" = "we are", "we'll" = "we will", "we've" = "we have",
+    "i'd" = "i would", "i'll" = "i will", "i'm" = "i am", "i've" = "i have",
+    "he'd" = "he would", "he'll" = "he will", "he's" = "he is",
+    "she'd" = "she would", "she'll" = "she will", "she's" = "she is",
+    "you'd" = "you would", "you'll" = "you will", "you're" = "you are", "you've" = "you have",
+    "it'd" = "it would", "it'll" = "it will"
   )
   
   for (pattern in names(contractions)) {
@@ -165,35 +61,51 @@ normalize_politics <- function(text) {
   return(text)
 }
 
-preprocess_text <- function(text) {
-  if (is.na(text) || nchar(text) < 2) return("")
+preprocess_text_full <- function(text) {
+  if (is.na(text) || nchar(text) < 2) {
+    return(c(tokens = "", clean_text = ""))
+  }
   
   text <- normalize_politics(text)
+  text <- tolower(text)
   text <- replace_contraction(text)
   
-  text <- gsub("\\[[^\\]]*\\]", "", text)  # square brackets
-  text <- gsub("\\([^\\)]*\\)", "", text)  # round brackets
-  text <- gsub("\\{[^\\}]*\\}", "", text)  # curly brackets
+  text <- gsub("\\[[^\\]]*\\]", "", text)
+  text <- gsub("\\([^\\)]*\\)", "", text)
+  text <- gsub("\\{[^\\}]*\\}", "", text)
   
-  text <- tolower(text)
   text <- rm_url(text)
   text <- removePunctuation(text)
-  #text <- removeNumbers(text)
   text <- stripWhitespace(text)
+  text <- trimws(text)
   
   tokens <- unlist(tokenize_words(text))
   tokens <- tokens[!tokens %in% stopwords("en")]
   
-  stemmed <- wordStem(tokens)
-  lemmatized <- lemmatize_words(stemmed)
+  lemmatized <- lemmatize_words(tokens)
+  stemmed <- wordStem(lemmatized)
   
-  return(paste(lemmatized, collapse = " "))
+  return(c(
+    tokens = paste(tokens, collapse = ", "),
+    clean_text = paste(stemmed, collapse = " ")
+  ))
 }
 
 data <- read.csv("ids_final_project_group_11_news_raw.csv", stringsAsFactors = FALSE)
 
-data$clean_title <- sapply(data$title, preprocess_text)
-data$clean_content <- sapply(data$content, preprocess_text)
+content_results <- lapply(data$content, preprocess_text_full)
+content_df <- as.data.frame(do.call(rbind, content_results), stringsAsFactors = FALSE)
+colnames(content_df) <- c("content_tokens", "clear_content")
+
+title_results <- lapply(data$title, preprocess_text_full)
+title_df <- as.data.frame(do.call(rbind, title_results), stringsAsFactors = FALSE)
+colnames(title_df) <- c("title_tokens", "clear_title")
+
+data <- cbind(data, title_df, content_df)
+
+data <- data %>% select(-section, -url, -title, -content)
 
 write.csv(data, "ids_final_project_group_11_news_clean.csv", row.names = FALSE)
+
+cat("✅ Text preprocessing complete. Cleaned file saved as: ids_final_project_group_11_news_clean.csv\n")
 

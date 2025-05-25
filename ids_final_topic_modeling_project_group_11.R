@@ -1,127 +1,157 @@
-packages <- c("readr", "dplyr", "tm", "SnowballC", "topicmodels", "ggplot2",
-              "tidyr", "fmsb", "Rtsne", "slam", "scales")
-installed <- packages %in% rownames(installed.packages())
-if (any(!installed)) install.packages(packages[!installed])
-lapply(packages, library, character.only = TRUE)
+install.packages("remotes")
+install.packages("tm")
+install.packages("ggplot2")
+install.packages("topicmodels")
+install.packages("tidytext")
+install.packages("ggforce")
+install.packages("LDAvis")
+install.packages("servr")
+install.packages("wordcloud")
+remotes::install_github("nikita-moor/ldatuning")
 
-df <- read_csv("ids_final_project_group_11_news_clean.csv")
-df <- df %>% filter(!is.na(clean_content))
-df$text <- df$clean_content
+library(ldatuning)
+library(tm)
+library(topicmodels)
+library(tidytext)
+library(ggplot2)
+library(dplyr)
+library(ggforce)
+library(LDAvis)
+library(wordcloud)
+library(RColorBrewer)
 
-texts <- tolower(df$text)
-texts <- gsub("[^a-z\s]", "", texts)
-texts <- removeWords(texts, stopwords("en"))
-texts <- stripWhitespace(texts)
-texts <- wordStem(texts)
+data <- read.csv("ids_final_project_group_11_news_clean.csv", stringsAsFactors = FALSE)
 
-corpus <- VCorpus(VectorSource(texts))
-dtm <- DocumentTermMatrix(corpus)
-dtm <- removeSparseTerms(dtm, 0.99)
+corpus <- VCorpus(VectorSource(data$clear_content))
 
-dtm_rowsums <- slam::row_sums(dtm)
-nonempty_idx <- dtm_rowsums > 0
-dtm <- dtm[nonempty_idx, ]
-df <- df[nonempty_idx, ]
+dtm <- DocumentTermMatrix(corpus, control = list(
+  wordLengths = c(3, Inf),
+  removeNumbers = TRUE,
+  removePunctuation = TRUE,
+  stopwords = TRUE
+))
 
-find_best_k <- function(dtm, k_seq = 2:10) {
-  perps <- numeric(length(k_seq))
-  
-  for (i in seq_along(k_seq)) {
-    cat("Fitting model with", k_seq[i], "topics...\n")
-    lda <- LDA(dtm, k = k_seq[i], method = "Gibbs", control = list(seed = 1234, burnin = 500, iter = 1000))
-    perps[i] <- perplexity(lda, dtm)
-  }
-  
-  df_metrics <- data.frame(k = k_seq, perplexity = perps)
-  
-  print(
-    ggplot(df_metrics, aes(x = k, y = perplexity)) +
-      geom_line(color = "red") +
-      geom_point(color = "red") +
-      labs(title = "Model Selection: Perplexity vs. Number of Topics",
-           y = "Perplexity", x = "Number of Topics (k)") +
-      theme_minimal()
+dtm <- removeSparseTerms(dtm, 0.98)
+
+result <- FindTopicsNumber(
+  dtm,
+  topics = seq(2, 10, by = 1),  
+  metrics = c("Griffiths2004", "CaoJuan2009", "Arun2010", "Deveaud2014"),
+  method = "Gibbs",
+  control = list(seed = 1234),
+  mc.cores = 2L,
+  verbose = TRUE
+)
+
+FindTopicsNumber_plot(result)
+
+k <- result$topics[which.max(result$Griffiths2004)]
+
+
+lda <- LDA(dtm, k = k, method = "Gibbs", control = list(seed = 1234))
+
+lda_terms <- tidy(lda, matrix = "beta")
+
+top_terms <- lda_terms %>%
+  group_by(topic) %>%
+  top_n(10, beta) %>%
+  ungroup() %>%
+  arrange(topic, -beta)
+
+
+top_terms <- top_terms %>%
+  mutate(term_label = paste0(term, "_", topic))
+
+ggplot(top_terms, aes(x = reorder(term_label, beta), y = beta, fill = as.factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  coord_flip() +
+  scale_x_discrete(labels = ~ gsub("_\\d+$", "", .)) +
+  labs(title = "Top 10 Terms per Topic", x = NULL, y = "Word Probability")
+
+
+phi <- posterior(lda)$terms
+theta <- posterior(lda)$topics
+vocab <- colnames(phi)
+doc_length <- rowSums(as.matrix(dtm))
+term_frequency <- colSums(as.matrix(dtm))
+
+json_lda <- createJSON(
+  phi = phi,
+  theta = theta,
+  vocab = vocab,
+  doc.length = doc_length,
+  term.frequency = term_frequency
+)
+
+json_lda <- createJSON(
+  phi = phi,
+  theta = theta,
+  vocab = vocab,
+  doc.length = doc_length,
+  term.frequency = term_frequency
+)
+
+serVis(json_lda, open.browser = TRUE)
+serVis(json_lda, out.dir = 'lda_vis', open.browser = FALSE)
+
+terms_matrix <- posterior(lda)$terms
+
+for (i in 1:k) {
+  wordcloud(
+    words = colnames(terms_matrix),
+    freq = terms_matrix[i, ],
+    min.freq = 0.001,
+    max.words = 70,
+    random.order = FALSE,
+    colors = brewer.pal(8, "Dark2"),
+    main = paste("Topic", i)
   )
-  
-  best_k <- k_seq[which.min(perps)]
-  cat("Best k based on min perplexity:", best_k, "\n")
-  return(best_k)
 }
 
-k <- find_best_k(dtm)
+top_terms <- tidy(lda, matrix = "beta") %>%
+  group_by(topic) %>%
+  slice_max(beta, n = 10) %>%
+  summarise(terms = paste(term, collapse = ", "))
 
-lda_model <- LDA(dtm, k = k, method = "Gibbs", control = list(seed = 1234, burnin = 500, iter = 1000))
-
-top_terms <- terms(lda_model, 10)
-topic_proportions <- posterior(lda_model)$topics
-df$dominant_topic <- apply(topic_proportions, 1, which.max)
-topic_labels <- apply(top_terms, 2, function(x) paste(x[1:4], collapse = "_"))
-df$topic_label <- topic_labels[df$dominant_topic]
+print(top_terms)
 
 
-set.seed(123)
-tsne <- Rtsne(topic_proportions)
-tsne_df <- data.frame(X1 = tsne$Y[,1], X2 = tsne$Y[,2], Topic = factor(df$dominant_topic))
-print(
-  ggplot(tsne_df, aes(x = X1, y = X2, color = Topic)) +
-    geom_point(alpha = 0.7) +
-    labs(title = "t-SNE Scatterplot of Topics")
-)
+doc_topics <- tidy(lda, matrix = "gamma")
 
-topic_df <- as.data.frame(topic_proportions)
-colnames(topic_df) <- paste0("Topic", 1:ncol(topic_df))
-topic_df$doc <- 1:nrow(topic_df)
-long_topic_df <- pivot_longer(topic_df, cols = starts_with("Topic"), names_to = "Topic", values_to = "Proportion")
-print(
-  ggplot(long_topic_df, aes(x = Topic, y = Proportion, fill = Topic)) +
-    geom_violin() +
-    labs(title = "Violin Plot of Topic Proportions") +
-    theme_minimal()
-)
+doc_dominant <- doc_topics %>%
+  group_by(document) %>%
+  slice_max(gamma, n = 1) %>%
+  ungroup() %>%
+  mutate(document = as.integer(document))
 
-avg_topic <- colMeans(topic_proportions)
-radar_data <- as.data.frame(t(avg_topic))
-radar_data <- rbind(rep(1, k), rep(0, k), radar_data)
-colnames(radar_data) <- paste("Topic", 1:k)
-radarchart(radar_data, axistype = 1, pcol = "blue", pfcol = scales::alpha("skyblue", 0.5), plwd = 2)
+data <- data %>%
+  mutate(document = row_number())
 
-df$published_date <- as.Date(df$published_date, format = "%d/%m/%Y")
-topic_props_df <- as.data.frame(topic_proportions)
-colnames(topic_props_df) <- paste0("Topic", 1:ncol(topic_props_df))
-df_with_topics <- bind_cols(df %>% select(-starts_with("Topic")), topic_props_df)
-long_df <- df_with_topics %>%
-  select(published_date, starts_with("Topic")) %>%
-  pivot_longer(cols = starts_with("Topic"), names_to = "Topic", values_to = "Proportion") %>%
-  group_by(published_date, Topic) %>%
-  summarise(avg_prop = mean(Proportion, na.rm = TRUE), .groups = "drop")
+data_with_topics <- left_join(data, doc_dominant, by = "document")
 
-print(
-  ggplot(long_df, aes(x = published_date, y = avg_prop, color = Topic)) +
-    geom_line() +
-    labs(title = "Topic Trends Over Time")
-)
+gamma_matrix <- posterior(lda)$topics
+gamma_df <- as.data.frame(gamma_matrix)
+gamma_df$document <- 1:nrow(gamma_df)
 
-print(
-  ggplot(df, aes(x = factor(dominant_topic))) +
-    geom_bar(fill = "steelblue") +
-    labs(title = "Histogram: Articles per Topic", x = "Topic", y = "Count")
-)
+data_with_all_topics <- data %>%
+  mutate(document = row_number()) %>%
+  left_join(gamma_df, by = "document")
 
-avg_df <- data.frame(Topic = colnames(topic_proportions),
-                     Avg = colMeans(topic_proportions))
-print(
-  ggplot(avg_df, aes(x = reorder(Topic, -Avg), y = Avg, fill = Topic)) +
-    geom_bar(stat = "identity") +
-    labs(title = "Bar Graph: Average Topic Proportion", x = "Topic", y = "Average Proportion")
-)
 
-print(
-  ggplot(long_topic_df, aes(x = Topic, y = Proportion, fill = Topic)) +
-    geom_boxplot() +
-    labs(title = "Box Plot: Distribution of Topic Proportions") +
-    theme_minimal()
-)
+write.csv(data_with_all_topics, "news_with_all_topic_probabilities.csv", row.names = FALSE)
 
-final_df <- bind_cols(df, as.data.frame(topic_proportions))
-write_csv(final_df, "ids_final_topic_modeling_project_group_11.csv")
+library(tidyr)
 
+gamma_long <- gamma_df %>%
+  pivot_longer(cols = -document, names_to = "topic", values_to = "probability") %>%
+  mutate(topic = as.integer(gsub("V", "", topic)))
+
+top_docs_per_topic <- gamma_long %>%
+  left_join(data, by = c("document")) %>%
+  group_by(topic) %>%
+  arrange(desc(probability)) %>%
+  slice_head(n = 5) %>%  # Top 5 per topic
+  ungroup()
+
+write.csv(top_docs_per_topic, "top_documents_per_topic.csv", row.names = FALSE)
